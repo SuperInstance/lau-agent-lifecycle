@@ -1,48 +1,57 @@
 # lau-agent-lifecycle
 
-A categorical agent lifecycle framework — sunset as colimit, spawning as pullback, conservation via adjunction, kintsugi repair — implemented in Rust.
+> Categorical agent lifecycle — sunset as colimit, spawning as pullback, conservation via adjunction, kintsugi repair
 
-Models the complete birth → work → sunset → seed → spawn lifecycle of agents using category theory, with knowledge preservation, genetic lineage tracking, and formal verification.
+Part of the **PLATO/LAU** mathematical agent framework.
 
 ---
 
 ## What This Does
 
-This crate provides a rigorous categorical framework for AI agent lifecycles:
+This crate models the complete lifecycle of an agent — **birth → work → sunset → seed → spawn** — using category theory. Every operation has a precise mathematical meaning:
 
-- **Agent states** — Objects in a category **Ag** with knowledge sets, generation tracking, and trinity (ethos/pathos/logos) state
-- **Knowledge-monotone transitions** — Morphisms that only add knowledge, never lose it
-- **Filtered lifetime diagrams** — Chains of agent states connected by monotone transitions
-- **Sunset (colimit)** — Lossless accumulation of all knowledge modulo redundancy
-- **Spawn (pullback)** — Genetic crossover: two parents produce a child agreeing on a shared interface
-- **Conservation functor** — C: Ag → Disc(X) preserving invariants across all transitions
-- **Connected components** — π₀(Ag) grouping agents by reachability, with adjunction π₀ ⊣ disc
-- **Trinity monad** — T = (T, η, μ) capturing ethos/pathos/logos with monad law verification
-- **Kintsugi adjunction** — repair ⊣ break: controlled damage with golden repair to nearest valid state
-- **Generation tracking** — Genetic lineage, mutation counting, diversity metrics
-- **PLATO lifecycle** — Complete birth → work → sunset → seed → spawn application
+- **Sunset** (agent death) = **colimit** of the filtered lifetime diagram (lossless knowledge accumulation, modulo redundancy)
+- **Spawn** (agent reproduction) = **pullback** in the category Ag (genetic crossover over a shared interface)
+- **Conservation** = a **functor** C: Ag → Disc(X) that preserves invariants across all transitions
+- **Repair** = the **kintsugi adjunction** (repair ⊣ break): golden-join finds the nearest valid state, and the repair is visible like golden cracks
+
+Additional structures:
+
+- **Trinity monad** (ethos/pathos/logos) — a triple structure T = (T, η, μ) governing the agent's moral, emotional, and rational dimensions
+- **Connected components** π₀(Ag) with the **adjunction** π₀ ⊣ disc (Theorem 4.3)
+- **Generation tracking** — genetic lineage, mutation counts, diversity metrics across agent generations
+- **PLATO lifecycle application** — a complete lifecycle manager combining all structures
+
+---
 
 ## Key Idea
 
-Agent lifecycles form a **category** where:
-- **Objects** are agent states (with knowledge, generation, trinity)
-- **Morphisms** are knowledge-monotone transitions (knowledge only grows)
-- **Sunset** is the **colimit** of a filtered diagram — accumulating everything losslessly
-- **Spawning** is a **pullback** — two parents agreeing on a shared interface produce a child
-- **Conservation** is a **functor** to a discrete category — invariants are preserved
+> Agent death is not destruction — it's accumulation. The colimit of a lifetime diagram preserves *all* unique knowledge while removing redundancy. Agent birth is not creation ex nihilo — it's a pullback, a crossover of two parent genomes over a shared interface.
 
-This categorical structure gives us formal guarantees: knowledge preservation is a theorem, not a hope.
+The category **Ag** has agent states as objects and knowledge-monotone transitions as morphisms. Knowledge only grows; it never shrinks. This monotonicity is the conservation law.
+
+---
 
 ## Install
 
-Add to your `Cargo.toml`:
-
 ```toml
 [dependencies]
-lau-agent-lifecycle = "0.1.0"
+lau-agent-lifecycle = { git = "https://github.com/SuperInstance/lau-agent-lifecycle" }
 ```
 
-Requires Rust 2021 edition or later.
+Or:
+
+```bash
+cargo add lau-agent-lifecycle
+```
+
+### Requirements
+
+- Rust 2021 edition
+- `serde` with `derive` feature
+- `nalgebra` 0.33 (for feature vectors)
+
+---
 
 ## Quick Start
 
@@ -50,272 +59,295 @@ Requires Rust 2021 edition or later.
 use lau_agent_lifecycle::*;
 use std::collections::BTreeSet;
 
-// Birth: create a PLATO agent with initial knowledge
+// Birth: create a PLATO agent
 let ks = KnowledgeSet::from_items(vec![
-    KnowledgeItem::new("k0", "genesis", "core"),
+    KnowledgeItem::new("k0", "genesis knowledge", "core"),
 ]);
-let mut agent = PlatoLifecycle::birth("plato-1", ks, 0);
+let mut plato = PlatoLifecycle::birth("agent-alpha", ks, 0);
 
-// Work: add knowledge through work ticks
-agent.work(vec![
-    KnowledgeItem::new("k1", "learned math", "math"),
-], "tick-1");
-agent.work(vec![
-    KnowledgeItem::new("k2", "learned logic", "logic"),
-], "tick-2");
+// Work: accumulate knowledge over time
+plato.work(vec![
+    KnowledgeItem::new("k1", "learned calculus", "math"),
+], "work-tick-1");
+plato.work(vec![
+    KnowledgeItem::new("k2", "learned topology", "math"),
+    KnowledgeItem::new("k3", "learned logic", "logic"),
+], "work-tick-2");
 
-// Sunset: colimit — accumulate all knowledge
-let sunset = agent.sunset();
-assert!(sunset.unique_knowledge_preserved);
+// Sunset: compute colimit (lossless accumulation)
+let sunset = plato.sunset();
+println!("Knowledge preserved: {}", sunset.unique_knowledge_preserved);
+println!("Redundancy removed: {}", sunset.redundancy_removed);
 
-// Seed: prepare for next generation
-let seed = agent.seed();
+// Seed: create a seed for next generation
+let seed = plato.seed();
+assert_eq!(seed.phase, LifecyclePhase::Seed);
 assert_eq!(seed.generation, 1);
-assert_eq!(seed.knowledge.len(), 3);
 
-// Spawn: pullback — crossover two agents
-let p1 = AgentState::new("p1", LifecyclePhase::Sunset)
-    .with_knowledge(KnowledgeSet::from_items(vec![
-        KnowledgeItem::new("k1", "a", "math"),
-    ]));
-let p2 = AgentState::new("p2", LifecyclePhase::Sunset)
-    .with_knowledge(KnowledgeSet::from_items(vec![
-        KnowledgeItem::new("k2", "b", "logic"),
-    ]));
-let result = spawn(&p1, &p2, &SharedInterface::empty(), "child");
-assert_eq!(result.child.knowledge.len(), 2);
-assert_eq!(result.child.generation, 1);
-
-// Kintsugi: break and repair with golden patches
-let broken = KintsugiAdjunction::break_state(&p1, 0.5, 42);
-let golden = KnowledgeSet::from_items(vec![
-    KnowledgeItem::new("golden-1", "repair patch", "recovery"),
-]);
-let repaired = KintsugiAdjunction::repair(&broken, &p1, &golden);
-assert_eq!(repaired.phase, LifecyclePhase::Work);
+// Spawn: crossover two agents
+let other_seed = /* ... another agent's seed ... */;
+let interface = SharedInterface::new("math", BTreeSet::from(["k1".to_string()]));
+let child = spawn(&seed, &other_seed, &interface, "gen1-child");
+println!("Child generation: {}", child.child.generation);
+println!("Crossover count: {}", child.crossover_count);
 ```
+
+---
 
 ## API Reference
 
-### Knowledge
+### Knowledge Types
 
 | Type | Description |
 |------|-------------|
-| `KnowledgeItem` | A knowledge item with id, content, domain, generation, provenance |
-| `KnowledgeSet` | Deduplicating set of knowledge items, supports merge and filtering |
+| `KnowledgeItem` | ID, content, domain, generation, provenance chain |
+| `KnowledgeSet` | BTreeMap-backed set with merge, dedup, domain filter, feature vector |
 
-Key methods on `KnowledgeSet`:
-- `insert(item)` — Add an item (returns false if duplicate)
-- `merge(&other)` — Merge another set, returns count of new items
-- `domain_filter(domain)` — Filter to items in a given domain
-- `unique_against(&other)` — Items not in the other set
-- `deduplicate()` — Remove items with same content/domain
-- `to_feature_vector(dim)` — Convert to a numerical vector
+#### `KnowledgeSet` Methods
 
-### Agent States
+- `new()`, `from_items(vec)`, `insert(item) → bool`
+- `merge(&other) → usize` — returns items added
+- `contains(id) → bool`, `len()`, `is_empty()`
+- `domain_filter(domain) → KnowledgeSet`
+- `unique_against(&other) → KnowledgeSet`
+- `deduplicate() → usize` — remove same-domain same-content duplicates
+- `to_feature_vector(dim) → DVector<f64>` — hash-based feature vector
 
-| Type | Description |
-|------|-------------|
-| `LifecyclePhase` | Birth, Work, Sunset, Seed, Broken |
-| `AgentState` | An object in category Ag |
-| `ConservationSignature` | Invariant signature preserved by transitions |
-| `Transition` | A knowledge-monotone morphism s₁ → s₂ |
-
-`AgentState` supports builder pattern:
-```rust
-let state = AgentState::new("agent-1", LifecyclePhase::Birth)
-    .with_knowledge(ks)
-    .with_generation(2)
-    .with_parents(vec!["p1".to_string(), "p2".to_string()])
-    .with_trinity(TrinityState::new(0.8, 0.6, 0.9))
-    .with_feature_dim(128);
-```
-
-### Filtered Diagrams
+### Agent State
 
 | Type | Description |
 |------|-------------|
-| `FilteredDiagram` | Chain of states connected by monotone transitions |
+| `LifecyclePhase` | `Birth`, `Work`, `Sunset`, `Seed`, `Broken` |
+| `AgentState` | id, phase, knowledge, generation, parents, tick, trinity, feature dimension |
+| `ConservationSignature` | knowledge_count, generation, provenance count, phase, domain count |
 
-Methods:
-- `chain(initial)` — Start a diagram from an initial state
-- `tick(next, label)` — Extend with a new state
-- `verify_monotonicity()` — Check all transitions are knowledge-monotone
-- `colimit()` — Compute the sunset state
+#### `AgentState` Builder Methods
+
+- `new(id, phase)` / `.with_knowledge(ks)` / `.with_generation(gen)` / `.with_parents(vec)` / `.with_tick(t)` / `.with_trinity(t)` / `.with_feature_dim(dim)`
+- `feature_vector() → DVector<f64>` — knowledge set projected to feature space
+- `conservation_signature() → ConservationSignature`
+
+### Transitions and Diagrams
+
+| Type | Description |
+|------|-------------|
+| `Transition` | source_id, target_id, knowledge_added, knowledge_preserved, label |
+| `FilteredDiagram` | Chain of states + transitions with monotonicity verification |
+
+#### `FilteredDiagram`
+
+- `new()`, `chain(initial_state)`
+- `tick(next_state, label) → &AgentState` — extend the chain
+- `current_state() → Option<&AgentState>`
+- `length() → usize`
+- `verify_monotonicity() → bool` — check all transitions are knowledge-monotone
+- `colimit() → AgentState` — accumulate all knowledge, deduplicate
 
 ### Sunset (Colimit)
 
-| Function | Description |
-|----------|-------------|
-| `sunset(&diagram)` | Compute colimit with full verification |
-| `verify_knowledge_preservation(diagram, sunset)` | Verify no knowledge lost |
+```rust
+pub fn sunset(diagram: &FilteredDiagram) -> SunsetResult
+pub fn verify_knowledge_preservation(diagram: &FilteredDiagram, sunset: &AgentState) -> bool
+```
 
-Returns `SunsetResult` with:
-- `sunset_state` — The accumulated agent state
-- `unique_knowledge_preserved` — Whether all unique items survived
-- `redundancy_removed` — Count of deduplicated items
+`SunsetResult` contains: sunset_state, source_count, knowledge counts before/after, uniqueness flag, redundancy_removed.
 
 ### Spawn (Pullback)
 
-| Function | Description |
-|----------|-------------|
-| `spawn(p1, p2, interface, child_id)` | Pullback crossover |
-| `SharedInterface::new(domain, ids)` | Define the shared agreement |
+```rust
+pub fn spawn(parent1: &AgentState, parent2: &AgentState, interface: &SharedInterface, child_id: &str) -> SpawnResult
+```
 
-Returns `SpawnResult` with:
-- `child` — The new agent state
-- `crossover_count` — Items from the shared interface
-- `inherited_from_p1/p2` — Counts from each parent
+`SpawnResult`: child state, shared interface, unique counts per parent, crossover count.
 
 ### Conservation Functor
 
-| Type | Description |
-|------|-------------|
-| `ConservationFunctor` | C: Ag → Disc(X) |
-| `DiscreteCategory` | Objects with only identity morphisms |
+```rust
+pub struct ConservationFunctor {
+    mapping: HashMap<String, ConservationSignature>,
+    discrete_cat: DiscreteCategory,
+}
+```
 
-Methods:
-- `map_state(&state)` — Map to conservation signature
-- `map_transition(t, src, tgt)` — Verify conservation law
-- `verify_conservation(&diagram)` — Check entire diagram
+- `map_state(state) → ConservationSignature`
+- `map_transition(t, source, target) → bool` — knowledge count non-decreasing
+- `is_invariant(before, after) → bool` — domains don't shrink
+- `verify_conservation(diagram) → bool`
 
 ### Connected Components
 
-| Type | Description |
-|------|-------------|
-| `ConnectedComponents` | π₀(Ag) grouping by reachability |
-| `disc_embed(ids, phase)` | The disc functor: Set → Ag |
+```rust
+ConnectedComponents::compute(states, transitions) → ConnectedComponents
+```
 
-Methods:
-- `compute(states, transitions)` — Union-Find based computation
-- `count()` — Number of components
-- `are_connected(a, b)` — Check reachability
+- `count() → usize`, `component_of(id) → Option<&BTreeSet<String>>`, `are_connected(a, b) → bool`
 
 ### Trinity Monad
 
-| Type | Description |
-|------|-------------|
-| `TrinityState` | Ethos × Pathos × Logos triple |
+```rust
+pub struct TrinityState { ethos: f64, pathos: f64, logos: f64 }
+```
 
-The trinity monad `T = (T, η, μ)`:
-- `unit(value)` — η: A → T(A), embed into balanced trinity
-- `multiply(outer, inner)` — μ: T²(A) → T(A), flatten nested trinity
-- `crossover(t1, t2)` — Average during spawning
-- `mutate(Δe, Δp, Δl)` — Add noise (clamped to [0,1])
-- `verify_left_identity/right_identity/associativity` — Check monad laws
+- `new(ethos, pathos, logos)`, `balanced(value)`, `unit(value)`, `default()` (= 0.5, 0.5, 0.5)
+- `multiply(outer, inner) → TrinityState` — monad multiplication μ
+- `crossover(t1, t2) → TrinityState` — weighted average for spawning
+- `mutate(δe, δp, δl) → TrinityState` — clamped to [0, 1]
+- `magnitude() → f64` — L2 norm
+- `verify_left_identity(v) → bool` / `verify_right_identity(t)` / `verify_associativity(t)` — monad law checks
 
 ### Kintsugi Adjunction
 
-| Type | Description |
-|------|-------------|
-| `BrokenState` | An agent state with controlled damage |
-| `KintsugiAdjunction` | The repair ⊣ break adjunction |
-
-Methods:
-- `break_state(&state, fraction, seed)` — Introduce controlled damage
-- `repair(&broken, &original, &golden_patch)` — Golden join to nearest valid state
-- `verify_adjunction(...)` — Check the adjunction property
+```rust
+KintsugiAdjunction::break_state(state, damage_fraction, seed) → BrokenState
+KintsugiAdjunction::repair(broken, original, golden_patch) → AgentState
+KintsugiAdjunction::verify_adjunction(broken, original, golden_patch) → bool
+```
 
 ### Generation Tracking
 
-| Type | Description |
-|------|-------------|
-| `GenerationTracker` | Tracks genetic lineage and diversity |
-| `GenealogyEntry` | Per-agent record with generation, parents, mutations |
+```rust
+pub struct GenerationTracker { lineage: BTreeMap<String, GenealogyEntry>, max_generation: u64 }
+```
 
-Methods:
-- `register(&state)` — Register an agent
-- `record_mutation(id)` — Track a mutation
-- `diversity(&states)` — Distinct domains per generation
-- `lineage_of(id)` — All ancestors
-- `is_descendant_of(id, ancestor)` — Check ancestry
+- `register(state)`, `record_mutation(agent_id)`
+- `diversity(states) → BTreeMap<u64, usize>` — distinct domains per generation
+- `lineage_of(agent_id) → Vec<String>` — all ancestors
+- `is_descendant_of(agent_id, ancestor_id) → bool`
 
 ### PLATO Lifecycle
 
-| Type | Description |
-|------|-------------|
-| `PlatoLifecycle` | Complete birth → work → sunset → seed cycle |
-| `AgentCategory` | The full category Ag |
+```rust
+let mut plato = PlatoLifecycle::birth("agent-1", initial_knowledge, 0);
+plato.work(new_items, "label");
+let sunset_result = plato.sunset();
+let seed = plato.seed();
+let current = plato.current();
+```
+
+### Agent Category
 
 ```rust
-let mut plato = PlatoLifecycle::birth("agent", initial_knowledge, 0);
-plato.work(vec![item1], "tick-1");
-plato.work(vec![item2], "tick-2");
-let sunset = plato.sunset();
-let seed = plato.seed();
+let mut cat = AgentCategory::new();
+cat.add_state(state);
+cat.add_transition(transition);
+cat.verify_composition() → bool;
+cat.verify_identities() → bool;
+cat.connected_components() → ConnectedComponents;
+cat.apply_conservation() → ConservationFunctor;
 ```
+
+---
 
 ## How It Works
 
-The framework builds on categorical abstractions:
+### The Category Ag
 
-1. **Knowledge management**: `KnowledgeSet` is a deduplicating set keyed by ID, with domain filtering, merge operations, and feature vector conversion. Items carry provenance chains for tracking where knowledge originated.
+```
+Objects:    Agent states (id, phase, knowledge, generation, ...)
+Morphisms:  Knowledge-monotone transitions f: A → B where B.knowledge ⊇ A.knowledge
+Composition: Transitivity (if f: A→B, g: B→C, then g∘f: A→C)
+Identities:  id_A: A→A (trivial transition, no knowledge added)
+```
 
-2. **Category Ag**: Objects are `AgentState`s (knowledge + generation + trinity + metadata). Morphisms are `Transition`s that are *knowledge-monotone* — the target's knowledge is a superset of the source's. This is enforced by `is_monotone()`.
+### Filtered Lifetime Diagram
 
-3. **Filtered diagrams**: A `FilteredDiagram` is a chain s₀ → s₁ → s₂ → ... where each step adds knowledge. The diagram tracks the full history and supports monotonicity verification.
+An agent's lifetime is a **filtered diagram**: a chain s₀ → s₁ → s₂ → ... where each step is knowledge-monotone. The colimit of this chain is the sunset state.
 
-4. **Sunset as colimit**: The colimit of a filtered diagram accumulates all knowledge from every state, then deduplicates. The result is a single state containing every unique knowledge item. Verification checks that nothing was lost.
+### Sunset (Colimit)
 
-5. **Spawn as pullback**: Given two parent agents P₁ and P₂ and a shared interface A (knowledge they agree on), the pullback P₁ ×_A P₂ produces a child that inherits the shared interface with dual provenance, plus each parent's unique knowledge.
+```
+colim(s₀ → s₁ → ... → sₙ) = accumulate all knowledge, deduplicate
+```
 
-6. **Conservation functor**: Maps each agent state to a `ConservationSignature` (knowledge count, generation, domain count, phase). This maps into a discrete category (only identity morphisms), so invariants are frozen. The functor verifies that domains never shrink across transitions.
+Every unique knowledge item from every state in the chain is preserved. Redundant items (same domain + same content) are merged. This is the "lossless accumulation modulo known redundancy" from Opus 4.8.
 
-7. **Connected components π₀**: Uses union-find to group agents by reachability through transitions. The adjunction π₀ ⊣ disc says that morphisms from disc-embedded states into Ag correspond to functions into the connected components.
+### Spawn (Pullback)
 
-8. **Trinity monad**: Each agent carries an (ethos, pathos, logos) triple. The monad structure gives unit (embed), multiplication (flatten), and satisfies the monad laws (left/right identity, associativity). Crossover during spawn averages the parents' trinities.
+```
+P₁ ×_A P₂ = { (p₁, p₂) | f₁(p₁) = f₂(p₂) in A }
+```
 
-9. **Kintsugi adjunction**: `break` introduces controlled damage (removes a fraction of knowledge), `repair` applies a golden patch to find the nearest valid state. The adjunction `repair ⊣ break` means: maps from the repaired state to any valid state correspond to maps from the broken state to the broken version of that valid state.
+In practice: given two parent agents and a shared interface (knowledge IDs they agree on), the child inherits:
+1. All shared interface items (crossover, with dual provenance)
+2. All unique items from each parent (with single provenance)
+
+### Conservation Functor
+
+C: Ag → Disc(X) maps each agent state to its conservation signature. The discrete category Disc(X) has only identity morphisms, so conservation signatures cannot change arbitrarily — they can only grow (knowledge count non-decreasing, domains non-shrinking).
+
+---
 
 ## The Math
 
-The categorical structure:
+### Category Theory Foundations
 
-| Category Theory | Agent Lifecycle |
-|-----------------|-----------------|
-| Object | Agent state (knowledge + metadata) |
-| Morphism | Knowledge-monotone transition |
-| Identity | No-op transition |
-| Composition | Sequential transitions |
-| Colimit (filtered) | Sunset (knowledge accumulation) |
-| Pullback | Spawn (genetic crossover) |
-| Functor C: Ag → Disc(X) | Conservation of invariants |
-| π₀(Ag) | Connected components (reachability) |
-| π₀ ⊣ disc | Adjunction (Theorem 4.3) |
-| Monad (T, η, μ) | Trinity (ethos/pathos/logos) |
-| Adjunction repair ⊣ break | Kintsugi (golden repair) |
+**Definition (Category Ag):** Objects are agent states. A morphism f: A → B exists iff `B.knowledge ⊇ A.knowledge` (knowledge monotonicity).
 
-**Knowledge monotonicity** is the key invariant: in category Ag, morphisms only add knowledge. This makes Ag a *poset-enriched* category where the ordering is knowledge inclusion.
+**Theorem (Sunset as Colimit):** For a filtered diagram D = (s₀ → s₁ → ... → sₙ), the colimit colim(D) is the agent state with knowledge = ⋃ᵢ sᵢ.knowledge (after deduplication), satisfying the universal property that knowledge from every state is preserved.
 
-The **colimit** of a filtered diagram exists because knowledge sets are closed under directed unions — the colimit is simply the union of all knowledge, modulo deduplication.
+**Theorem (Spawn as Pullback):** Given parent states P₁, P₂ and shared interface A, the pullback P₁ ×_A P₂ is the child state inheriting crossover items plus unique items from each parent.
 
-The **pullback** P₁ ×_A P₂ exists when both parents can map to the shared interface A. The child inherits the interface items (with dual provenance) plus each parent's unique contributions.
-
-**Conservation** means: certain quantities (knowledge count, domain diversity) are non-decreasing under all transitions. The conservation functor freezes these into a discrete category where only identity morphisms exist.
-
-## Tests
-
-The crate contains **73 tests** (10 unit + 63 integration) covering:
-- Knowledge set operations (insert, merge, filter, deduplicate, feature vectors)
-- Agent state creation and conservation signatures
-- Transition monotonicity (positive and negative cases)
-- Filtered diagram chains and monotonicity verification
-- Sunset colimit with knowledge preservation and redundancy removal
-- Spawn pullback with crossover, generation increment, and full inheritance
-- Conservation functor mapping and diagram verification
-- Connected components (single, linked, separate)
-- Disc embedding and adjunction verification
-- Trinity monad operations and law verification (left/right identity, associativity)
-- Kintsugi break/repair and adjunction verification
-- Generation tracking (registration, mutation, diversity, lineage)
-- PLATO full lifecycle (birth → work → sunset → seed → spawn)
-- Serialization round-trips for all major types
-
-Run with:
-
-```bash
-cargo test
+**Theorem 4.3 (Adjunction π₀ ⊣ disc):** For any set X and category Ag:
 ```
+Hom_Ag(disc(X), A) ≅ Hom_Set(X, π₀(A))
+```
+This means morphisms from disc-embedded states into A correspond to functions from X into the connected components of A.
+
+### Trinity Monad
+
+The trinity T = (T, η, μ) is a monad on the category of agent states:
+
+- **Unit** η: A → T(A) maps a scalar to a balanced trinity
+- **Multiplication** μ: T²(A) → T(A) flattens nested trinities via component-wise multiplication
+- **Monad laws** (verified to within ε = 10⁻¹⁰):
+  - Left identity: μ ∘ Tη ≈ id
+  - Right identity: μ ∘ ηT ≈ id
+  - Associativity: μ ∘ Tμ ≈ μ ∘ μT
+
+### Kintsugi Adjunction
+
+The adjunction repair ⊣ break satisfies:
+```
+Hom_Ag(repair(B), A) ≅ Hom_Ag_broken(B, break(A))
+```
+
+`break` introduces controlled damage (removes a fraction of knowledge items). `repair` applies a golden patch to recover. The golden join is visible — the repair is not erased, it's celebrated.
+
+### Feature Vectors
+
+Knowledge sets are projected to ℝᵈ via hash-based feature vectors:
+
+```
+v[i] = |{ k ∈ K : hash(k.id) mod d = i }|
+```
+
+This is a bag-of-words style embedding in the knowledge domain.
+
+---
+
+## Test Suite
+
+**73 integration tests** covering:
+
+- KnowledgeSet: insert, dedup, merge, domain filter, unique-against, redundancy, feature vectors, empty set
+- AgentState: creation, builder methods, conservation signature, phase display
+- Transitions: monotone and non-monotone
+- FilteredDiagram: chain construction, monotonicity verification, colimit computation
+- Sunset: knowledge preservation, redundancy removal, verification
+- Spawn: basic crossover, inherits all, generation increment
+- ConservationFunctor: state mapping, domain preservation, diagram verification
+- ConnectedComponents: single, linked, separate; disc_embed; adjunction verification
+- Trinity: creation, unit, multiply, crossover, mutation (with clamping), magnitude, monad laws (left/right identity, associativity), equality
+- Kintsugi: break, repair, adjunction verification, zero damage
+- GenerationTracker: register, mutation counting, diversity, lineage, descendant checks, multi-generation
+- AgentCategory: creation, connected components, conservation, laws
+- PLATO lifecycle: birth, work ticks, sunset, seed, full lifecycle (birth → work → sunset → seed → spawn)
+- Serialization: KnowledgeSet, AgentState, ConnectedComponents, GenerationTracker, BrokenState
+- Edge cases: empty knowledge, shared interface, long chain colimit (11 states)
+
+Run: `cargo test`
+
+---
 
 ## License
 
